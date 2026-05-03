@@ -40,7 +40,7 @@ public class TareasController : ControllerBase
         var created = _repo.Add(new Tarea
         {
             Nombre = dto.Nombre,
-            Descripcion = dto.Descripcion,
+            Descripcion = dto.Descripcion ?? string.Empty,
             Estado = dto.Estado
         });
 
@@ -57,7 +57,7 @@ public class TareasController : ControllerBase
         {
             Id = id,
             Nombre = dto.Nombre,
-            Descripcion = dto.Descripcion,
+            Descripcion = dto.Descripcion ?? string.Empty,
             Estado = dto.Estado
         });
 
