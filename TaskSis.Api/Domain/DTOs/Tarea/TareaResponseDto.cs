@@ -2,10 +2,10 @@ using TaskSis.Api.Domain.Enums;
 
 namespace TaskSis.Api.Domain.DTOs.Tarea;
 
-public class TareaResponseDto
+public sealed record TareaResponseDto
 {
-    public int Id { get; set; }
-    public string Nombre { get; set; } = string.Empty;
-    public string? Descripcion { get; set; }
-    public EstadoTarea Estado { get; set; }
+    public int Id { get; init; }
+    public string Nombre { get; init; } = string.Empty;
+    public string? Descripcion { get; init; }
+    public EstadoTarea Estado { get; init; }
 }
