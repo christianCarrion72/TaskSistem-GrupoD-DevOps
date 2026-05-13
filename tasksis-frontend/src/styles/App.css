@@ -1,0 +1,21 @@
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #6d4a74;
+}
+
+.app-container {
+  flex: 1;
+  padding: 20px;
+  overflow-x: auto;
+}
+
+.board-header {
+  margin-bottom: 15px;
+  color: white;
+}
+
+.board-title {
+  font-size: 22px;
+  font-weight: bold;
+}
