@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using TaskSis.Api.Domain.DTOs.Common;
 using TaskSis.Api.Domain.DTOs.Tarea;
-using TaskSis.Api.Domain.Entities;
-using TaskSis.Api.Infrastructure.Repositories;
+using TaskSis.Api.Features.Tareas;
 
 namespace TaskSis.Api.Controllers;
 
@@ -9,73 +9,71 @@ namespace TaskSis.Api.Controllers;
 [Route("api/[controller]")]
 public class TareasController : ControllerBase
 {
-    private readonly ITareaRepository _repo;
+    private readonly ITareaService _service;
 
-    public TareasController(ITareaRepository repo)
+    public TareasController(ITareaService service)
     {
-        _repo = repo;
+        _service = service;
     }
 
     [HttpGet]
-    public ActionResult<List<TareaResponseDto>> GetAll()
+    public IActionResult GetAll()
     {
-        var items = _repo.GetAll().Select(MapToDto).ToList();
-        return Ok(items);
+        return Respond(_service.GetAll());
     }
 
     [HttpGet("{id:int}")]
-    public ActionResult<TareaResponseDto> GetById(int id)
+    public IActionResult GetById(int id)
     {
-        var item = _repo.GetById(id);
-        if (item is null) return NotFound();
-
-        return Ok(MapToDto(item));
+        return Respond(_service.GetById(id));
     }
 
     [HttpPost]
-    public ActionResult<TareaResponseDto> Create([FromBody] TareaCreateDto dto)
+    public IActionResult Create([FromBody] TareaCreateDto dto)
     {
-        if (!ModelState.IsValid) return ValidationProblem(ModelState);
+        if (!ModelState.IsValid) return UnprocessableFromModelState<TareaResponseDto>();
 
-        var created = _repo.Add(new Tarea
+        ServiceResponse<TareaResponseDto> response = _service.Create(dto);
+
+        if (response.StatusCode == 201 && response.Body.Datos is not null)
         {
-            Nombre = dto.Nombre,
-            Descripcion = dto.Descripcion ?? string.Empty,
-            Estado = dto.Estado
-        });
+            return CreatedAtAction(nameof(GetById), new { id = response.Body.Datos.Id }, response.Body);
+        }
 
-        var result = MapToDto(created);
-        return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
+        return Respond(response);
     }
 
     [HttpPut("{id:int}")]
     public IActionResult Update(int id, [FromBody] TareaUpdateDto dto)
     {
-        if (!ModelState.IsValid) return ValidationProblem(ModelState);
+        if (!ModelState.IsValid) return UnprocessableFromModelState<TareaResponseDto>();
 
-        var ok = _repo.Update(new Tarea
-        {
-            Id = id,
-            Nombre = dto.Nombre,
-            Descripcion = dto.Descripcion ?? string.Empty,
-            Estado = dto.Estado
-        });
-
-        return ok ? NoContent() : NotFound();
+        return Respond(_service.Update(id, dto));
     }
 
     [HttpDelete("{id:int}")]
     public IActionResult Delete(int id)
     {
-        var ok = _repo.Delete(id);
-        return ok ? NoContent() : NotFound();
+        return Respond(_service.Delete(id));
     }
 
-    private static TareaResponseDto MapToDto(Tarea x) => new()
+    private IActionResult Respond<T>(ServiceResponse<T> response) =>
+        StatusCode(response.StatusCode, response.Body);
+
+    private IActionResult UnprocessableFromModelState<T>()
     {
-        Id = x.Id,
-        Nombre = x.Nombre,
-        Descripcion = x.Descripcion,
-        Estado = x.Estado
-    };
+        List<ValidationErrorDto> errors = ModelState
+            .SelectMany(kvp =>
+                kvp.Value?.Errors.Select(e => new ValidationErrorDto(kvp.Key, e.ErrorMessage))
+                ?? Enumerable.Empty<ValidationErrorDto>())
+            .ToList();
+
+        return StatusCode(
+            422,
+            new ApiResponse<T>(
+                Exito: false,
+                Mensaje: "Fallo en la validación de tarea.",
+                Datos: default,
+                Errores: errors));
+    }
 }
