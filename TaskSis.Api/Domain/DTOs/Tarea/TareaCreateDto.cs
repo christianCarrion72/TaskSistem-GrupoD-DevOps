@@ -3,14 +3,14 @@ using TaskSis.Api.Domain.Enums;
 
 namespace TaskSis.Api.Domain.DTOs.Tarea;
 
-public class TareaCreateDto
+public sealed record TareaCreateDto
 {
     [Required]
     [MinLength(2)]
-    public string Nombre { get; set; } = string.Empty;
+    public string Nombre { get; init; } = string.Empty;
 
     [MaxLength(200)]
-    public string? Descripcion { get; set; }
+    public string? Descripcion { get; init; }
 
-    public EstadoTarea Estado { get; set; } = EstadoTarea.Pendiente;
+    public EstadoTarea Estado { get; init; } = EstadoTarea.Pendiente;
 }
