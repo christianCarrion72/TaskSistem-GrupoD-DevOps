@@ -20,7 +20,7 @@ public class InMemoryTareaRepository : ITareaRepository
     {
         lock (_lock)
         {
-            var item = _items.FirstOrDefault(x => x.Id == id);
+            Tarea? item = _items.FirstOrDefault(x => x.Id == id);
             return item is null ? null : Clone(item);
         }
     }
@@ -29,7 +29,7 @@ public class InMemoryTareaRepository : ITareaRepository
     {
         lock (_lock)
         {
-            var entity = new Tarea
+            Tarea entity = new()
             {
                 Id = _nextId++,
                 Nombre = tarea.Nombre,
@@ -46,7 +46,7 @@ public class InMemoryTareaRepository : ITareaRepository
     {
         lock (_lock)
         {
-            var idx = _items.FindIndex(x => x.Id == tarea.Id);
+            int idx = _items.FindIndex(x => x.Id == tarea.Id);
             if (idx < 0) return false;
 
             _items[idx].Nombre = tarea.Nombre;
@@ -60,7 +60,7 @@ public class InMemoryTareaRepository : ITareaRepository
     {
         lock (_lock)
         {
-            var item = _items.FirstOrDefault(x => x.Id == id);
+            Tarea? item = _items.FirstOrDefault(x => x.Id == id);
             if (item is null) return false;
 
             _items.Remove(item);
