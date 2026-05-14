@@ -9,7 +9,7 @@ interface Props {
   tareas: Tarea[];
   onMoveLeft?: (id: number) => void;
   onMoveRight?: (id: number) => void;
-  onAddTask: (nombre: string, descripcion: string) => void;
+  onAddTask: (nombre: string, descripcion: string, estado: "pendiente" | "proceso" | "hecho") => void;
 }
 
 export default function Column({
@@ -23,14 +23,16 @@ export default function Column({
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
+  const [estado, setEstado] = useState<"pendiente" | "proceso" | "hecho">("pendiente");
 
   const guardar = () => {
-    if (!nombre.trim()) return;
+    if (!nombre.trim() || !descripcion.trim()) return;
 
-    onAddTask(nombre, descripcion);
+    onAddTask(nombre, descripcion, estado);
 
     setNombre("");
     setDescripcion("");
+    setEstado("pendiente");
     setMostrarFormulario(false);
   };
 
@@ -62,8 +64,23 @@ export default function Column({
             onChange={(e) => setDescripcion(e.target.value)}
           />
 
+          {/* Selector de estado */}
+          <select
+            className="task-select"
+            value={estado}
+            onChange={(e) => setEstado(e.target.value as "pendiente" | "proceso" | "hecho")}
+          >
+            <option value="pendiente">Pendiente</option>
+            <option value="proceso">En proceso</option>
+            <option value="hecho">Hecho</option>
+          </select>
+
           <div className="task-form-actions">
-            <button className="task-save-btn" onClick={guardar}>
+            <button
+              className="task-save-btn"
+              onClick={guardar}
+              disabled={!nombre.trim() || !descripcion.trim()}
+            >
               Guardar
             </button>
 
@@ -76,8 +93,11 @@ export default function Column({
           </div>
         </div>
       ) : (
-        <button className="add-card-btn" onClick={() => setMostrarFormulario(true)}>
-          + Añada una tarjeta
+        <button
+          className="add-card-btn"
+          onClick={() => setMostrarFormulario(true)}
+        >
+          + Añada una tarea
         </button>
       )}
     </div>
