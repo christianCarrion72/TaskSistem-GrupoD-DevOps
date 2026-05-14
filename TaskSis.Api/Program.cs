@@ -26,7 +26,18 @@ public static class Program
         builder.Services.AddSingleton<TareaMapper>();
         builder.Services.AddSingleton<ITareaService, TareaService>();
 
-        WebApplication app = builder.Build();
+        //agregue este fragmento CORS (para permitir conexión con React)
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy("AllowFrontend", policy =>
+            {
+                policy.WithOrigins("http://localhost:5173")
+                      .AllowAnyHeader()
+                      .AllowAnyMethod();
+            });
+        });
+
+        var app = builder.Build();
 
         if (app.Environment.IsDevelopment())
         {
@@ -35,6 +46,9 @@ public static class Program
         }
 
         app.UseHttpsRedirection();
+
+        // Activar CORS
+        app.UseCors("AllowFrontend");
 
         app.MapControllers();
 
