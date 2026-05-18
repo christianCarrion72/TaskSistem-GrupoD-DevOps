@@ -53,3 +53,21 @@ jobs:
     - name: Ejecutar pruebas frontend
       run: npm run test --if-present
       working-directory: ./tasksis-frontend
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+    - name: Obtener código
+      uses: actions/checkout@v4
+
+    - name: construir imagen Docker
+      run: docker build -f TaskSis.Api/Dockerfile -t tasksis:latest ./TaskSis.Api
+
+    - name: Ejecutar el contenedor
+      run: docker run -d -p 5255:5255 --name tasksis-container tasksis:latest
+
+    - name: Validar que el contenedor está corriendo
+      run: docker ps | grep tasksis-container
+
