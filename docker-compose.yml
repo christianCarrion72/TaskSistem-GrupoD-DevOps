@@ -1,0 +1,21 @@
+
+services:
+  api:
+    build:
+      context: ./TaskSis.Api
+      dockerfile: Dockerfile
+    container_name: tasksis-api
+    ports:
+      - "5255:5255"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+
+  frontend:
+    build:
+      context: ./tasksis-frontend
+      dockerfile: Dockerfile
+    container_name: tasksis-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
