@@ -1,17 +1,17 @@
 using Microsoft.AspNetCore.Mvc;
 using TaskSis.Api.Domain.DTOs.Common;
-using TaskSis.Api.Domain.DTOs.Tarea;
-using TaskSis.Api.Features.Tareas;
+using TaskSis.Api.Domain.DTOs.Usuario;
+using TaskSis.Api.Features.Usuarios;
 
 namespace TaskSis.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class TareasController : ControllerBase
+public class UsuariosController : ControllerBase
 {
-    private readonly ITareaService _service;
+    private readonly IUsuarioService _service;
 
-    public TareasController(ITareaService service)
+    public UsuariosController(IUsuarioService service)
     {
         _service = service;
     }
@@ -28,18 +28,12 @@ public class TareasController : ControllerBase
         return Respond(_service.GetById(id));
     }
 
-    [HttpGet("usuario/{usuarioId:int}")]
-    public IActionResult GetByUsuarioId(int usuarioId)
-    {
-        return Respond(_service.GetByUsuarioId(usuarioId));
-    }
-
     [HttpPost]
-    public IActionResult Create([FromBody] TareaCreateDto dto)
+    public IActionResult Create([FromBody] UsuarioCreateDto dto)
     {
-        if (!ModelState.IsValid) return UnprocessableFromModelState<TareaResponseDto>();
+        if (!ModelState.IsValid) return UnprocessableFromModelState<UsuarioResponseDto>();
 
-        ServiceResponse<TareaResponseDto> response = _service.Create(dto);
+        ServiceResponse<UsuarioResponseDto> response = _service.Create(dto);
 
         if (response.StatusCode == 201 && response.Body.Datos is not null)
         {
@@ -47,20 +41,6 @@ public class TareasController : ControllerBase
         }
 
         return Respond(response);
-    }
-
-    [HttpPut("{id:int}")]
-    public IActionResult Update(int id, [FromBody] TareaUpdateDto dto)
-    {
-        if (!ModelState.IsValid) return UnprocessableFromModelState<TareaResponseDto>();
-
-        return Respond(_service.Update(id, dto));
-    }
-
-    [HttpDelete("{id:int}")]
-    public IActionResult Delete(int id)
-    {
-        return Respond(_service.Delete(id));
     }
 
     private IActionResult Respond<T>(ServiceResponse<T> response) =>
@@ -78,7 +58,7 @@ public class TareasController : ControllerBase
             422,
             new ApiResponse<T>(
                 Exito: false,
-                Mensaje: "Fallo en la validación de tarea.",
+                Mensaje: "Fallo en la validación de usuario.",
                 Datos: default,
                 Errores: errors));
     }
