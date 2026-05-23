@@ -18,8 +18,8 @@ on:
 # ═══════════════════════════════════════════════════
 env:
   REGISTRY: ghcr.io
-  IMAGE_BACKEND: ghcr.io/${{ github.repository_owner }}/tasksis-api
-  IMAGE_FRONTEND: ghcr.io/${{ github.repository_owner }}/tasksis-frontend
+  IMAGE_BACKEND: ghcr.io/christiancarrion72/tasksis-api
+  IMAGE_FRONTEND: ghcr.io/christiancarrion72/tasksis-frontend
   DOTNET_VERSION: "10.0.x"
   NODE_VERSION: "20"
 
