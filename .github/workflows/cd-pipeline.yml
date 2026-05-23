@@ -100,7 +100,7 @@ jobs:
           cache-dependency-path: tasksis-frontend/package-lock.json
 
       - name: "STEP 3 | Instalar dependencias"
-        run: npm ci
+        run: npm install
         working-directory: ./tasksis-frontend
 
       - name: "STEP 4 | Ejecutar pruebas"

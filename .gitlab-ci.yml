@@ -74,7 +74,7 @@ build-test-frontend:
 
   script:
     # STEP 1 - Instalar dependencias
-    - cd tasksis-frontend && npm ci
+    - cd tasksis-frontend && npm install
     # STEP 2 - Ejecutar pruebas
     - npm run test 2>/dev/null || true
     # STEP 3 - Compilar frontend
