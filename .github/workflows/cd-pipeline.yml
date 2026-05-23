@@ -86,7 +86,6 @@ jobs:
   stage-2-ci-frontend:
     name: "STAGE 2 | CI Frontend"
     runs-on: ubuntu-latest
-    needs: stage-1-ci-backend
 
     steps:
       - name: "STEP 1 | Obtener código"
