@@ -1,0 +1,24 @@
+# Override de persistencia — se usa junto con docker-compose.yml
+# Uso local:   docker compose -f docker-compose.yml -f docker-compose.persist.yml up -d
+# Uso CI/CD:   BACKEND_IMAGE=ghcr.io/... FRONTEND_IMAGE=ghcr.io/... docker compose -f docker-compose.yml -f docker-compose.persist.yml up -d
+
+services:
+  db:
+    volumes:
+      - tasksis_db_data:/var/lib/postgresql/data
+
+  api:
+    image: ${BACKEND_IMAGE:-}
+    build:
+      context: ./TaskSis.Api
+      dockerfile: Dockerfile
+
+  frontend:
+    image: ${FRONTEND_IMAGE:-}
+    build:
+      context: ./tasksis-frontend
+      dockerfile: Dockerfile
+
+volumes:
+  tasksis_db_data:
+    driver: local
