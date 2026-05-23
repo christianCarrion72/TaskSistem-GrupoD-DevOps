@@ -194,14 +194,22 @@ jobs:
           BACKEND_IMAGE: ${{ env.IMAGE_BACKEND }}:latest
           FRONTEND_IMAGE: ${{ env.IMAGE_FRONTEND }}:latest
 
-      - name: "STEP 4 | Esperar a que el backend esté listo"
+      - name: "STEP 4 | Esperar a que PostgreSQL esté listo"
         run: |
-          for i in $(seq 1 15); do
-            curl -sf http://localhost:5255/api/tareas && break || sleep 3
+          echo "Esperando PostgreSQL..."
+          for i in $(seq 1 20); do
+            docker exec tasksis-db pg_isready -U tasksis -d tasksis && break || sleep 3
+          done
+
+      - name: "STEP 5 | Esperar a que el backend esté listo"
+        run: |
+          echo "Esperando API..."
+          for i in $(seq 1 20); do
+            curl -sf http://localhost:5255/api/tareas && break || sleep 5
           done
 
       # --- Integración: Usuarios ---
-      - name: "STEP 5 | Integración — Crear usuario"
+      - name: "STEP 6 | Integración — Crear usuario"
         run: |
           RESPONSE=$(curl -sf -X POST http://localhost:5255/api/usuarios \
             -H "Content-Type: application/json" \
@@ -209,14 +217,14 @@ jobs:
           echo "Respuesta crear usuario: $RESPONSE"
           echo $RESPONSE | grep -q "Usuario Test" || exit 1
 
-      - name: "STEP 6 | Integración — Listar usuarios"
+      - name: "STEP 7 | Integración — Listar usuarios"
         run: |
           RESPONSE=$(curl -sf http://localhost:5255/api/usuarios)
           echo "Respuesta listar usuarios: $RESPONSE"
           echo $RESPONSE | grep -q "Usuario Test" || exit 1
 
       # --- Integración: Tareas ---
-      - name: "STEP 7 | Integración — Crear tarea"
+      - name: "STEP 8 | Integración — Crear tarea"
         run: |
           RESPONSE=$(curl -sf -X POST http://localhost:5255/api/tareas \
             -H "Content-Type: application/json" \
@@ -224,13 +232,13 @@ jobs:
           echo "Respuesta crear tarea: $RESPONSE"
           echo $RESPONSE | grep -q "Tarea Test" || exit 1
 
-      - name: "STEP 8 | Integración — Listar tareas"
+      - name: "STEP 9 | Integración — Listar tareas"
         run: |
           RESPONSE=$(curl -sf http://localhost:5255/api/tareas)
           echo "Respuesta listar tareas: $RESPONSE"
           echo $RESPONSE | grep -q "Tarea Test" || exit 1
 
-      - name: "STEP 9 | Integración — Actualizar tarea"
+      - name: "STEP 10 | Integración — Actualizar tarea"
         run: |
           RESPONSE=$(curl -sf -X PUT http://localhost:5255/api/tareas/1 \
             -H "Content-Type: application/json" \
@@ -238,15 +246,15 @@ jobs:
           echo "Respuesta actualizar tarea: $RESPONSE"
           echo $RESPONSE | grep -q "EnProgreso" || exit 1
 
-      - name: "STEP 10 | Integración — Eliminar tarea"
+      - name: "STEP 11 | Integración — Eliminar tarea"
         run: |
           curl -sf -X DELETE http://localhost:5255/api/tareas/1
           echo "Tarea eliminada correctamente"
 
-      - name: "STEP 11 | Integración — Frontend accesible"
+      - name: "STEP 12 | Integración — Frontend accesible"
         run: curl -sf http://localhost:80
 
-      - name: "STEP 12 | Detener contenedores de prueba"
+      - name: "STEP 13 | Detener contenedores de prueba"
         if: always()
         run: docker compose -f docker-compose.yml -f docker-compose.persist.yml down
 
@@ -269,22 +277,30 @@ jobs:
           BACKEND_IMAGE: ${{ env.IMAGE_BACKEND }}:latest
           FRONTEND_IMAGE: ${{ env.IMAGE_FRONTEND }}:latest
 
-      - name: "STEP 3 | Esperar a que los servicios estén listos"
+      - name: "STEP 3 | Esperar a que PostgreSQL esté listo"
         run: |
-          for i in $(seq 1 15); do
-            curl -sf http://localhost:5255/api/tareas && break || sleep 3
+          echo "Esperando PostgreSQL..."
+          for i in $(seq 1 20); do
+            docker exec tasksis-db pg_isready -U tasksis -d tasksis && break || sleep 3
           done
 
-      - name: "STEP 4 | Smoke test — GET /api/tareas"
+      - name: "STEP 4 | Esperar a que el backend esté listo"
+        run: |
+          echo "Esperando API..."
+          for i in $(seq 1 20); do
+            curl -sf http://localhost:5255/api/tareas && break || sleep 5
+          done
+
+      - name: "STEP 5 | Smoke test — GET /api/tareas"
         run: curl -sf http://localhost:5255/api/tareas
 
-      - name: "STEP 5 | Smoke test — GET /api/usuarios"
+      - name: "STEP 6 | Smoke test — GET /api/usuarios"
         run: curl -sf http://localhost:5255/api/usuarios
 
-      - name: "STEP 6 | Smoke test — Frontend accesible"
+      - name: "STEP 7 | Smoke test — Frontend accesible"
         run: curl -sf http://localhost:80
 
-      - name: "STEP 7 | Detener contenedores"
+      - name: "STEP 8 | Detener contenedores"
         if: always()
         run: docker compose -f docker-compose.yml -f docker-compose.persist.yml down
 

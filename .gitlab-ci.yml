@@ -132,10 +132,17 @@ integration-test:
     # STEP 3 - Levantar stack dockerizado completo
     - BACKEND_IMAGE=$IMAGE_BACKEND:latest FRONTEND_IMAGE=$IMAGE_FRONTEND:latest
       docker compose -f docker-compose.yml -f docker-compose.persist.yml up -d
-    # STEP 4 - Esperar a que el backend esté listo
+    # STEP 4 - Esperar a que PostgreSQL esté listo
     - |
-      for i in $(seq 1 15); do
-        curl -sf http://localhost:5255/api/tareas && break || sleep 3
+      echo "Esperando PostgreSQL..."
+      for i in $(seq 1 20); do
+        docker exec tasksis-db pg_isready -U tasksis -d tasksis && break || sleep 3
+      done
+    # STEP 5 - Esperar a que el backend esté listo
+    - |
+      echo "Esperando API..."
+      for i in $(seq 1 20); do
+        curl -sf http://localhost:5255/api/tareas && break || sleep 5
       done
     # STEP 5 - Integración: Crear usuario
     - |
@@ -195,12 +202,19 @@ smoke-test:
     # STEP 2 - Levantar stack completo
     - BACKEND_IMAGE=$IMAGE_BACKEND:latest FRONTEND_IMAGE=$IMAGE_FRONTEND:latest
       docker compose -f docker-compose.yml -f docker-compose.persist.yml up -d
-    # STEP 3 - Esperar a que los servicios estén listos
+    # STEP 3 - Esperar a que PostgreSQL esté listo
     - |
-      for i in $(seq 1 15); do
-        curl -sf http://localhost:5255/api/tareas && break || sleep 3
+      echo "Esperando PostgreSQL..."
+      for i in $(seq 1 20); do
+        docker exec tasksis-db pg_isready -U tasksis -d tasksis && break || sleep 3
       done
-    # STEP 4 - Smoke test endpoints
+    # STEP 4 - Esperar a que el backend esté listo
+    - |
+      echo "Esperando API..."
+      for i in $(seq 1 20); do
+        curl -sf http://localhost:5255/api/tareas && break || sleep 5
+      done
+    # STEP 5 - Smoke test endpoints
     - curl -sf http://localhost:5255/api/tareas
     - curl -sf http://localhost:5255/api/usuarios
     - curl -sf http://localhost:80
