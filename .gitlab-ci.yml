@@ -172,9 +172,9 @@ integration-test:
     - |
       RESPONSE=$(curl -sf -X PUT http://localhost:5255/api/tareas/1 \
         -H "Content-Type: application/json" \
-        -d '{"nombre":"Tarea Test","descripcion":"Actualizada","estado":"EnProgreso","usuarioAsignadoId":1}')
+        -d '{"nombre":"Tarea Test","descripcion":"Actualizada","estado":"Proceso","usuarioAsignadoId":1}')
       echo "Actualizar tarea: $RESPONSE"
-      echo $RESPONSE | grep -q "EnProgreso" || exit 1
+      echo $RESPONSE | grep -q "Proceso" || exit 1
     # STEP 10 - Integración: Eliminar tarea
     - curl -sf -X DELETE http://localhost:5255/api/tareas/1
     # STEP 11 - Frontend accesible
