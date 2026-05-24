@@ -68,6 +68,7 @@ export default function App() {
           Nombre: tarea.nombre,
           Descripcion: tarea.descripcion,
           Estado: convertirEstadoApi(nuevoEstado),
+          UsuarioAsignadoId: tarea.usuarioAsignadoId ?? null,
         }),
       });
 

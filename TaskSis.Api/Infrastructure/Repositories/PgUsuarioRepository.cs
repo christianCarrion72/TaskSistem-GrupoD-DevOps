@@ -18,4 +18,25 @@ public class PgUsuarioRepository(AppDbContext db) : IUsuarioRepository
         db.SaveChanges();
         return usuario;
     }
+
+    public bool Update(Usuario usuario)
+    {
+        Usuario? existing = db.Usuarios.FirstOrDefault(u => u.Id == usuario.Id);
+        if (existing is null) return false;
+
+        existing.Nombre = usuario.Nombre;
+        existing.Correo = usuario.Correo;
+        db.SaveChanges();
+        return true;
+    }
+
+    public bool Delete(int id)
+    {
+        Usuario? existing = db.Usuarios.FirstOrDefault(u => u.Id == id);
+        if (existing is null) return false;
+
+        db.Usuarios.Remove(existing);
+        db.SaveChanges();
+        return true;
+    }
 }

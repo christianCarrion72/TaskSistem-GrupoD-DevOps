@@ -5,6 +5,7 @@ import type { Tarea } from "../types/Tarea";
 import type { Miembro } from "../types/Miembro";
 import { getUsuarios } from "../services/UsuariosApi";
 
+const API_URL = "http://localhost:5255/api/tareas";
 const CLAVE_ASIGNACIONES = "tasksis_asignaciones";
 
 const COLORES = ["#1976d2", "#388e3c", "#f57c00", "#7b1fa2", "#d32f2f", "#0097a7", "#e64a19", "#5d3b66"];
@@ -28,6 +29,16 @@ export default function TaskCard({ tarea, onMoveLeft, onMoveRight }: Props) {
         const lista = await getUsuarios();
         setMiembros(lista);
 
+        // Prioridad 1: el campo que viene directamente de la BD
+        if (tarea.usuarioAsignadoId) {
+          const encontrado = lista.find((m) => m.id === tarea.usuarioAsignadoId);
+          if (encontrado) {
+            setMiembroAsignado(encontrado);
+            return;
+          }
+        }
+
+        // Prioridad 2: localStorage (fallback)
         const asignacionesGuardadas = localStorage.getItem(CLAVE_ASIGNACIONES);
         if (asignacionesGuardadas) {
           try {
@@ -47,7 +58,7 @@ export default function TaskCard({ tarea, onMoveLeft, onMoveRight }: Props) {
     };
 
     cargar();
-  }, [tarea.id]);
+  }, [tarea.id, tarea.usuarioAsignadoId]);
 
   useEffect(() => {
     if (!showDropdown) return;
@@ -82,10 +93,11 @@ export default function TaskCard({ tarea, onMoveLeft, onMoveRight }: Props) {
     setShowDropdown((prev) => !prev);
   };
 
-  const asignarMiembro = (miembro: Miembro | null) => {
+  const asignarMiembro = async (miembro: Miembro | null) => {
     setMiembroAsignado(miembro);
     setShowDropdown(false);
 
+    // Guardar en localStorage
     const asignacionesGuardadas = localStorage.getItem(CLAVE_ASIGNACIONES);
     let mapa: Record<number, number> = {};
     if (asignacionesGuardadas) {
@@ -95,6 +107,24 @@ export default function TaskCard({ tarea, onMoveLeft, onMoveRight }: Props) {
     if (miembro) { mapa[tarea.id] = miembro.id; }
     else { delete mapa[tarea.id]; }
     localStorage.setItem(CLAVE_ASIGNACIONES, JSON.stringify(mapa));
+
+    // Persistir en la base de datos via API
+    try {
+      await fetch(`${API_URL}/${tarea.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          Nombre: tarea.nombre,
+          Descripcion: tarea.descripcion,
+          Estado: tarea.estado
+            ? tarea.estado.charAt(0).toUpperCase() + tarea.estado.slice(1).toLowerCase()
+            : "Pendiente",
+          UsuarioAsignadoId: miembro ? miembro.id : null,
+        }),
+      });
+    } catch (error) {
+      console.error("Error al guardar asignación en la BD", error);
+    }
   };
 
   const obtenerInicial = (nombre: string) => nombre.trim().charAt(0).toUpperCase();
