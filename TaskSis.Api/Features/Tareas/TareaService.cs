@@ -9,11 +9,13 @@ namespace TaskSis.Api.Features.Tareas;
 public sealed class TareaService : ITareaService
 {
     private readonly ITareaRepository _repo;
+    private readonly IUsuarioRepository _usuarioRepo;
     private readonly TareaMapper _mapper;
 
-    public TareaService(ITareaRepository repo, TareaMapper mapper)
+    public TareaService(ITareaRepository repo, IUsuarioRepository usuarioRepo, TareaMapper mapper)
     {
         _repo = repo;
+        _usuarioRepo = usuarioRepo;
         _mapper = mapper;
     }
 
@@ -37,12 +39,45 @@ public sealed class TareaService : ITareaService
         return ServiceResponse<TareaResponseDto>.Ok(_mapper.ToResponseDto(item), "Tarea obtenida exitosamente");
     }
 
+    public ServiceResponse<List<TareaResponseDto>> GetByUsuarioId(int usuarioId)
+    {
+        // Validar que el usuario existe
+        if (_usuarioRepo.GetById(usuarioId) is null)
+        {
+            return ServiceResponse<List<TareaResponseDto>>.NotFound($"Usuario no encontrado con id: {usuarioId}");
+        }
+
+        List<Tarea> items = _repo.GetAll()
+            .Where(t => t.UsuarioId == usuarioId)
+            .ToList();
+
+        List<TareaResponseDto> dtos = _mapper.ToResponseDtoList(items);
+
+        string message = dtos.Count == 0
+            ? $"No hay tareas para el usuario con id: {usuarioId}"
+            : "Tareas obtenidas exitosamente";
+
+        return ServiceResponse<List<TareaResponseDto>>.Ok(dtos, message);
+    }
+
     public ServiceResponse<TareaResponseDto> Create(TareaCreateDto dto)
     {
         IReadOnlyList<ValidationErrorDto> errors = DtoValidation.Validate(dto);
         if (errors.Count > 0)
         {
             return ServiceResponse<TareaResponseDto>.Unprocessable(errors, "Fallo en la validación de tarea.");
+        }
+
+        // Validar que el usuario propietario existe
+        if (_usuarioRepo.GetById(dto.UsuarioId) is null)
+        {
+            return ServiceResponse<TareaResponseDto>.NotFound($"Usuario propietario no encontrado con id: {dto.UsuarioId}");
+        }
+
+        // Validar que el usuario asignado existe (si se especifica)
+        if (dto.UsuarioAsignadoId.HasValue && _usuarioRepo.GetById(dto.UsuarioAsignadoId.Value) is null)
+        {
+            return ServiceResponse<TareaResponseDto>.NotFound($"Usuario asignado no encontrado con id: {dto.UsuarioAsignadoId}");
         }
 
         TareaCreateDto normalizedDto = dto with { Descripcion = dto.Descripcion ?? string.Empty };
@@ -62,6 +97,12 @@ public sealed class TareaService : ITareaService
 
         Tarea? existing = _repo.GetById(id);
         if (existing is null) return ServiceResponse<TareaResponseDto>.NotFound("Tarea no encontrada");
+
+        // Validar que el usuario asignado existe (si se especifica)
+        if (dto.UsuarioAsignadoId.HasValue && _usuarioRepo.GetById(dto.UsuarioAsignadoId.Value) is null)
+        {
+            return ServiceResponse<TareaResponseDto>.NotFound($"Usuario asignado no encontrado con id: {dto.UsuarioAsignadoId}");
+        }
 
         TareaUpdateDto normalizedDto = dto with { Descripcion = dto.Descripcion ?? string.Empty };
         _mapper.MapToEntity(normalizedDto, existing);

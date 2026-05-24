@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
 using TaskSis.Api.Features.Tareas;
+using TaskSis.Api.Features.Usuarios;
+using TaskSis.Api.Infrastructure.Persistence;
 using TaskSis.Api.Infrastructure.Repositories;
 
 namespace TaskSis.Api;
@@ -22,22 +25,46 @@ public static class Program
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
 
-        builder.Services.AddSingleton<ITareaRepository, InMemoryTareaRepository>();
-        builder.Services.AddSingleton<TareaMapper>();
-        builder.Services.AddSingleton<ITareaService, TareaService>();
+        // Base de datos
+        string connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
-        //agregue este fragmento CORS (para permitir conexión con React)
+        builder.Services.AddDbContext<AppDbContext>(options =>
+            options.UseNpgsql(connectionString));
+
+        // Repositorios
+        builder.Services.AddScoped<ITareaRepository, PgTareaRepository>();
+        builder.Services.AddScoped<IUsuarioRepository, PgUsuarioRepository>();
+
+        // Mappers
+        builder.Services.AddScoped<TareaMapper>();
+        builder.Services.AddScoped<UsuarioMapper>();
+
+        // Servicios
+        builder.Services.AddScoped<ITareaService, TareaService>();
+        builder.Services.AddScoped<IUsuarioService, UsuarioService>();
+
         builder.Services.AddCors(options =>
         {
             options.AddPolicy("AllowFrontend", policy =>
             {
-                policy.WithOrigins("http://localhost:5173")
+                policy.WithOrigins(
+                          "http://localhost:5173",
+                          "http://localhost:80",
+                          "http://localhost")
                       .AllowAnyHeader()
                       .AllowAnyMethod();
             });
         });
 
         var app = builder.Build();
+
+        // Aplicar migraciones automáticamente al iniciar
+        using (IServiceScope scope = app.Services.CreateScope())
+        {
+            AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.Database.Migrate();
+        }
 
         if (app.Environment.IsDevelopment())
         {
@@ -46,12 +73,8 @@ public static class Program
         }
 
         app.UseHttpsRedirection();
-
-        // Activar CORS
         app.UseCors("AllowFrontend");
-
         app.MapControllers();
-
         app.Run();
     }
 }

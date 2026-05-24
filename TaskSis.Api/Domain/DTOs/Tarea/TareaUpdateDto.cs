@@ -13,4 +13,6 @@ public sealed record TareaUpdateDto
     public string? Descripcion { get; init; }
 
     public EstadoTarea Estado { get; init; }
+
+    public int? UsuarioAsignadoId { get; init; }
 }

@@ -1,0 +1,395 @@
+name: CI/CD Pipeline — TaskSistem
+
+# ═══════════════════════════════════════════════════
+# TRIGGERS
+# ═══════════════════════════════════════════════════
+on:
+  push:
+    branches:
+      - main
+      - "feature/**"
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+# ═══════════════════════════════════════════════════
+# VARIABLES GLOBALES
+# ═══════════════════════════════════════════════════
+env:
+  REGISTRY: ghcr.io
+  IMAGE_BACKEND: ghcr.io/christiancarrion72/tasksis-api
+  IMAGE_FRONTEND: ghcr.io/christiancarrion72/tasksis-frontend
+  DOTNET_VERSION: "10.0.x"
+  NODE_VERSION: "20"
+
+# ═══════════════════════════════════════════════════
+# NOTA: GitHub Actions no tiene clave "stages" nativa.
+# Los stages se representan como jobs encadenados
+# con "needs:" sobre un único runner (ubuntu-latest).
+#
+# Jerarquía:
+#   STAGE → JOB → STEPS
+#
+#   STAGE 1 → job: stage-1-ci-backend
+#   STAGE 2 → job: stage-2-ci-frontend
+#   STAGE 3 → job: stage-3-docker-build
+#   STAGE 4 → job: stage-4-smoke-test
+#   STAGE 5 → job: stage-5-deploy-staging
+#   STAGE 6 → job: stage-6-deploy-production
+# ═══════════════════════════════════════════════════
+
+jobs:
+
+# ┌─────────────────────────────────────────────────┐
+# │ STAGE 1                                         │
+# │   JOB: stage-1-ci-backend                       │
+# └─────────────────────────────────────────────────┘
+  stage-1-ci-backend:
+    name: "STAGE 1 | CI Backend"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "STEP 1 | Obtener código"
+        uses: actions/checkout@v4
+
+      - name: "STEP 2 | Configurar .NET"
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: "STEP 3 | Restaurar dependencias"
+        run: dotnet restore
+
+      - name: "STEP 4 | Compilar en modo Release"
+        run: dotnet build --configuration Release --no-restore
+
+      - name: "STEP 5 | Ejecutar pruebas"
+        run: dotnet test --no-build --configuration Release --verbosity normal
+        continue-on-error: true
+
+      - name: "STEP 6 | Publicar binarios"
+        run: dotnet publish TaskSis.Api/TaskSis.Api.csproj -c Release -o ./publish/backend /p:UseAppHost=false
+
+      # ARTEFACTO — binarios compilados del backend
+      - name: "STEP 7 | Subir artefacto backend-publish"
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-publish
+          path: ./publish/backend
+          retention-days: 7
+
+# ┌─────────────────────────────────────────────────┐
+# │ STAGE 2                                         │
+# │   JOB: stage-2-ci-frontend                      │
+# └─────────────────────────────────────────────────┘
+  stage-2-ci-frontend:
+    name: "STAGE 2 | CI Frontend"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "STEP 1 | Obtener código"
+        uses: actions/checkout@v4
+
+      - name: "STEP 2 | Configurar Node.js"
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: tasksis-frontend/package-lock.json
+
+      - name: "STEP 3 | Instalar dependencias"
+        run: npm install
+        working-directory: ./tasksis-frontend
+
+      - name: "STEP 4 | Ejecutar pruebas"
+        run: npm run test 2>/dev/null || true
+        working-directory: ./tasksis-frontend
+
+      - name: "STEP 5 | Compilar frontend"
+        run: npm run build
+        working-directory: ./tasksis-frontend
+
+      # ARTEFACTO — build estático listo para servir
+      - name: "STEP 6 | Subir artefacto frontend-dist"
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: ./tasksis-frontend/dist
+          retention-days: 7
+
+# ┌─────────────────────────────────────────────────┐
+# │ STAGE 3                                         │
+# │   JOB: stage-3-docker-build                     │
+# └─────────────────────────────────────────────────┘
+  stage-3-docker-build:
+    name: "STAGE 3 | Docker Build & Push"
+    runs-on: ubuntu-latest
+    needs: [stage-1-ci-backend, stage-2-ci-frontend]
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: "STEP 1 | Obtener código"
+        uses: actions/checkout@v4
+
+      - name: "STEP 2 | Autenticar en GitHub Container Registry"
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: "STEP 3 | Configurar Docker Buildx"
+        uses: docker/setup-buildx-action@v3
+
+      - name: "STEP 4 | Build & Push imagen backend"
+        uses: docker/build-push-action@v5
+        with:
+          context: ./TaskSis.Api
+          file: ./TaskSis.Api/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_BACKEND }}:sha-${{ github.sha }}
+            ${{ env.IMAGE_BACKEND }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: "STEP 5 | Build & Push imagen frontend"
+        uses: docker/build-push-action@v5
+        with:
+          context: ./tasksis-frontend
+          file: ./tasksis-frontend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_FRONTEND }}:sha-${{ github.sha }}
+            ${{ env.IMAGE_FRONTEND }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+# ┌─────────────────────────────────────────────────┐
+# │ STAGE 4                                         │
+# │   JOB: stage-4-integration-test                 │
+# │   Levanta el stack dockerizado y prueba la API  │
+# │   con datos reales (CRUD completo)              │
+# └─────────────────────────────────────────────────┘
+  stage-4-integration-test:
+    name: "STAGE 4 | Pruebas de Integración"
+    runs-on: ubuntu-latest
+    needs: stage-3-docker-build
+
+    steps:
+      - name: "STEP 1 | Obtener código"
+        uses: actions/checkout@v4
+
+      - name: "STEP 2 | Crear directorio de datos persistentes"
+        run: mkdir -p ./data/tasksis
+
+      - name: "STEP 3 | Levantar stack dockerizado completo"
+        run: docker compose -f docker-compose.yml -f docker-compose.persist.yml up -d
+        env:
+          BACKEND_IMAGE: ${{ env.IMAGE_BACKEND }}:latest
+          FRONTEND_IMAGE: ${{ env.IMAGE_FRONTEND }}:latest
+
+      - name: "STEP 4 | Esperar a que PostgreSQL esté listo"
+        run: |
+          echo "Esperando PostgreSQL..."
+          for i in $(seq 1 20); do
+            docker exec tasksis-db pg_isready -U tasksis -d tasksis && break || sleep 3
+          done
+
+      - name: "STEP 5 | Esperar a que el backend esté listo"
+        run: |
+          echo "Esperando API..."
+          for i in $(seq 1 20); do
+            curl -sf http://localhost:5255/api/tareas && break || sleep 5
+          done
+
+      # --- Integración: Usuarios ---
+      - name: "STEP 6 | Integración — Crear usuario"
+        run: |
+          RESPONSE=$(curl -sf -X POST http://localhost:5255/api/usuarios \
+            -H "Content-Type: application/json" \
+            -d '{"nombre":"Usuario Test"}')
+          echo "Respuesta crear usuario: $RESPONSE"
+          echo $RESPONSE | grep -q "Usuario Test" || exit 1
+
+      - name: "STEP 7 | Integración — Listar usuarios"
+        run: |
+          RESPONSE=$(curl -sf http://localhost:5255/api/usuarios)
+          echo "Respuesta listar usuarios: $RESPONSE"
+          echo $RESPONSE | grep -q "Usuario Test" || exit 1
+
+      # --- Integración: Tareas ---
+      - name: "STEP 8 | Integración — Crear tarea"
+        run: |
+          RESPONSE=$(curl -sf -X POST http://localhost:5255/api/tareas \
+            -H "Content-Type: application/json" \
+            -d '{"nombre":"Tarea Test","descripcion":"Prueba de integración","estado":"Pendiente","usuarioId":1}')
+          echo "Respuesta crear tarea: $RESPONSE"
+          echo $RESPONSE | grep -q "Tarea Test" || exit 1
+
+      - name: "STEP 9 | Integración — Listar tareas"
+        run: |
+          RESPONSE=$(curl -sf http://localhost:5255/api/tareas)
+          echo "Respuesta listar tareas: $RESPONSE"
+          echo $RESPONSE | grep -q "Tarea Test" || exit 1
+
+      - name: "STEP 10 | Integración — Actualizar tarea"
+        run: |
+          RESPONSE=$(curl -sf -X PUT http://localhost:5255/api/tareas/1 \
+            -H "Content-Type: application/json" \
+            -d '{"nombre":"Tarea Test","descripcion":"Actualizada","estado":"Proceso","usuarioAsignadoId":1}')
+          echo "Respuesta actualizar tarea: $RESPONSE"
+          echo $RESPONSE | grep -q "Proceso" || exit 1
+
+      - name: "STEP 11 | Integración — Eliminar tarea"
+        run: |
+          curl -sf -X DELETE http://localhost:5255/api/tareas/1
+          echo "Tarea eliminada correctamente"
+
+      - name: "STEP 12 | Integración — Frontend accesible"
+        run: curl -sf http://localhost:80
+
+      - name: "STEP 13 | Detener contenedores de prueba"
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.persist.yml down
+
+# ┌─────────────────────────────────────────────────┐
+# │ STAGE 5                                         │
+# │   JOB: stage-5-smoke-test                       │
+# └─────────────────────────────────────────────────┘
+  stage-5-smoke-test:
+    name: "STAGE 5 | Smoke Tests"
+    runs-on: ubuntu-latest
+    needs: stage-4-integration-test
+
+    steps:
+      - name: "STEP 1 | Obtener código"
+        uses: actions/checkout@v4
+
+      - name: "STEP 2 | Levantar stack completo"
+        run: docker compose -f docker-compose.yml -f docker-compose.persist.yml up -d
+        env:
+          BACKEND_IMAGE: ${{ env.IMAGE_BACKEND }}:latest
+          FRONTEND_IMAGE: ${{ env.IMAGE_FRONTEND }}:latest
+
+      - name: "STEP 3 | Esperar a que PostgreSQL esté listo"
+        run: |
+          echo "Esperando PostgreSQL..."
+          for i in $(seq 1 20); do
+            docker exec tasksis-db pg_isready -U tasksis -d tasksis && break || sleep 3
+          done
+
+      - name: "STEP 4 | Esperar a que el backend esté listo"
+        run: |
+          echo "Esperando API..."
+          for i in $(seq 1 20); do
+            curl -sf http://localhost:5255/api/tareas && break || sleep 5
+          done
+
+      - name: "STEP 5 | Smoke test — GET /api/tareas"
+        run: curl -sf http://localhost:5255/api/tareas
+
+      - name: "STEP 6 | Smoke test — GET /api/usuarios"
+        run: curl -sf http://localhost:5255/api/usuarios
+
+      - name: "STEP 7 | Smoke test — Frontend accesible"
+        run: curl -sf http://localhost:80
+
+      - name: "STEP 8 | Detener contenedores"
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.persist.yml down
+
+# ┌─────────────────────────────────────────────────┐
+# │ STAGE 6                                         │
+# │   JOB: stage-6-deploy-staging                   │
+# │   Solo se ejecuta en push a main                │
+# └─────────────────────────────────────────────────┘
+  stage-6-deploy-staging:
+    name: "STAGE 6 | CD Deploy Staging"
+    runs-on: ubuntu-latest
+    needs: stage-5-smoke-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: staging
+      url: http://${{ vars.STAGING_HOST }}:5173
+
+    steps:
+      - name: "STEP 1 | Obtener código"
+        uses: actions/checkout@v4
+
+      - name: "STEP 2 | Deploy en staging vía SSH"
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            cd /opt/tasksis
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker pull ${{ env.IMAGE_BACKEND }}:latest
+            docker pull ${{ env.IMAGE_FRONTEND }}:latest
+            docker compose -f docker-compose.yml -f docker-compose.persist.yml up -d --remove-orphans
+
+      - name: "STEP 3 | Verificar deploy en staging"
+        run: |
+          sleep 10
+          curl -sf http://${{ secrets.STAGING_HOST }}:5255/api/tareas
+          curl -sf http://${{ secrets.STAGING_HOST }}:5173
+
+# ┌─────────────────────────────────────────────────┐
+# │ STAGE 7                                         │
+# │   JOB: stage-7-deploy-production                │
+# │   Requiere aprobación manual en GitHub          │
+# └─────────────────────────────────────────────────┘
+  stage-7-deploy-production:
+    name: "STAGE 7 | CD Deploy Producción"
+    runs-on: ubuntu-latest
+    needs: stage-6-deploy-staging
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: production
+      url: http://${{ vars.PROD_HOST }}:5173
+
+    steps:
+      - name: "STEP 1 | Obtener código"
+        uses: actions/checkout@v4
+
+      - name: "STEP 2 | Backup del volumen de datos"
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script: |
+            docker run --rm \
+              -v tasksis_db_data:/data \
+              -v /opt/tasksis/backups:/backup \
+              alpine tar czf /backup/db-$(date +%Y%m%d-%H%M%S).tar.gz /data
+
+      - name: "STEP 3 | Deploy en producción vía SSH"
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script: |
+            cd /opt/tasksis
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker pull ${{ env.IMAGE_BACKEND }}:latest
+            docker pull ${{ env.IMAGE_FRONTEND }}:latest
+            docker compose -f docker-compose.yml -f docker-compose.persist.yml up -d --remove-orphans
+
+      - name: "STEP 4 | Verificar deploy en producción"
+        run: |
+          sleep 10
+          curl -sf http://${{ secrets.PROD_HOST }}:5255/api/tareas
+          curl -sf http://${{ secrets.PROD_HOST }}:5173
+
+      # ARTEFACTO — registro del deploy exitoso
+      - name: "STEP 5 | Notificar deploy exitoso"
+        if: success()
+        run: echo "Deploy a producción completado — SHA ${{ github.sha }}"

@@ -13,4 +13,9 @@ public sealed record TareaCreateDto
     public string? Descripcion { get; init; }
 
     public EstadoTarea Estado { get; init; } = EstadoTarea.Pendiente;
+
+    [Required]
+    public int UsuarioId { get; init; }
+
+    public int? UsuarioAsignadoId { get; init; }
 }

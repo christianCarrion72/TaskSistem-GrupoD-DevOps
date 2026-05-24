@@ -34,7 +34,9 @@ public class InMemoryTareaRepository : ITareaRepository
                 Id = _nextId++,
                 Nombre = tarea.Nombre,
                 Descripcion = tarea.Descripcion,
-                Estado = tarea.Estado
+                Estado = tarea.Estado,
+                UsuarioId = tarea.UsuarioId,
+                UsuarioAsignadoId = tarea.UsuarioAsignadoId
             };
 
             _items.Add(entity);
@@ -52,6 +54,7 @@ public class InMemoryTareaRepository : ITareaRepository
             _items[idx].Nombre = tarea.Nombre;
             _items[idx].Descripcion = tarea.Descripcion;
             _items[idx].Estado = tarea.Estado;
+            _items[idx].UsuarioAsignadoId = tarea.UsuarioAsignadoId;
             return true;
         }
     }
@@ -73,6 +76,8 @@ public class InMemoryTareaRepository : ITareaRepository
         Id = x.Id,
         Nombre = x.Nombre,
         Descripcion = x.Descripcion,
-        Estado = x.Estado
+        Estado = x.Estado,
+        UsuarioId = x.UsuarioId,
+        UsuarioAsignadoId = x.UsuarioAsignadoId
     };
 }
