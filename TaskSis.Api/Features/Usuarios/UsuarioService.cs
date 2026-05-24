@@ -50,4 +50,34 @@ public sealed class UsuarioService : IUsuarioService
 
         return ServiceResponse<UsuarioResponseDto>.Created(_mapper.ToResponseDto(created), "Usuario creado exitosamente");
     }
+
+    public ServiceResponse<UsuarioResponseDto> Update(int id, UsuarioUpdateDto dto)
+    {
+        IReadOnlyList<ValidationErrorDto> errors = DtoValidation.Validate(dto);
+        if (errors.Count > 0)
+        {
+            return ServiceResponse<UsuarioResponseDto>.Unprocessable(errors, "Fallo en la validación de usuario.");
+        }
+
+        Usuario? existing = _repo.GetById(id);
+        if (existing is null) return ServiceResponse<UsuarioResponseDto>.NotFound($"Usuario no encontrado con id: {id}");
+
+        existing.Nombre = dto.Nombre;
+        existing.Correo = dto.Correo;
+
+        bool ok = _repo.Update(existing);
+        if (!ok) return ServiceResponse<UsuarioResponseDto>.NotFound($"Usuario no encontrado con id: {id}");
+
+        Usuario updated = _repo.GetById(id)!;
+        return ServiceResponse<UsuarioResponseDto>.Ok(_mapper.ToResponseDto(updated), "Usuario actualizado exitosamente");
+    }
+
+    public ServiceResponse<string> Delete(int id)
+    {
+        Usuario? existing = _repo.GetById(id);
+        if (existing is null) return ServiceResponse<string>.NotFound($"Usuario no encontrado con id: {id}");
+
+        _repo.Delete(id);
+        return ServiceResponse<string>.Ok("Usuario eliminado exitosamente", "Usuario eliminado exitosamente");
+    }
 }

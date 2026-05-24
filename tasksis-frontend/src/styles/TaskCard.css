@@ -5,6 +5,7 @@
   margin-bottom: 10px;
   font-size: 14px;
   box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.25);
+  position: relative;
 }
 
 .task-title {
@@ -15,12 +16,20 @@
 .task-description {
   font-size: 13px;
   color: #555;
+  margin-bottom: 8px;
+}
+
+.task-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  border-top: 1px solid #f2f2f2;
+  padding-top: 8px;
 }
 
 .task-actions {
-  margin-top: 10px;
   display: flex;
-  justify-content: flex-end;
   gap: 6px;
 }
 
@@ -35,4 +44,98 @@
 
 .task-btn:hover {
   background: #d6d6d6;
+}
+
+.task-assignment-container {
+  position: relative;
+}
+
+.assignee-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  outline: none;
+  transition: transform 0.1s ease;
+}
+
+.assignee-btn:hover {
+  transform: scale(1.08);
+}
+
+.assignee-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  color: white;
+  font-weight: bold;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: uppercase;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.assignee-avatar.unassigned {
+  background-color: #f1f2f4;
+  color: #626f86;
+  border: 1px dashed #a5adba;
+  box-shadow: none;
+}
+
+.assignee-avatar.unassigned:hover {
+  background-color: #e3e6e8;
+  color: #172b4d;
+  border-color: #707f94;
+}
+
+/* Dropdown styling */
+.assignee-dropdown {
+  background: #ffffff;
+  border: 1px solid #dfe1e6;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(9, 30, 66, 0.22), 0 0 0 1px rgba(9, 30, 66, 0.1);
+  z-index: 9999;
+  width: 190px;
+  max-height: 220px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px 0;
+  animation: dropdownFadeIn 0.12s ease-out;
+}
+
+@keyframes dropdownFadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+  color: #172b4d;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dropdown-item:hover {
+  background-color: #f0f1f3;
+}
+
+.dropdown-item .assignee-avatar {
+  width: 22px;
+  height: 22px;
+  font-size: 10px;
+  flex-shrink: 0;
 }

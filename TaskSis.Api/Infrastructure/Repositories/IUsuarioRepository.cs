@@ -7,4 +7,6 @@ public interface IUsuarioRepository
     IReadOnlyList<Usuario> GetAll();
     Usuario? GetById(int id);
     Usuario Add(Usuario usuario);
+    bool Update(Usuario usuario);
+    bool Delete(int id);
 }

@@ -8,4 +8,6 @@ public interface IUsuarioService
     ServiceResponse<List<UsuarioResponseDto>> GetAll();
     ServiceResponse<UsuarioResponseDto> GetById(int id);
     ServiceResponse<UsuarioResponseDto> Create(UsuarioCreateDto dto);
+    ServiceResponse<UsuarioResponseDto> Update(int id, UsuarioUpdateDto dto);
+    ServiceResponse<string> Delete(int id);
 }

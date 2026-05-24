@@ -5,6 +5,7 @@ import "./styles/Layout.css";
 import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
 import Column from "./components/Column";
+import GestionMiembros from "./components/GestionMiembros";
 
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -23,6 +24,7 @@ type ApiResponse = {
 
 export default function App() {
   const [respuesta, setRespuesta] = useState<ApiResponse | null>(null);
+  const [seccionActiva, setSeccionActiva] = useState<"tablero" | "miembros" | "configuracion">("tablero");
 
   useEffect(() => {
     cargarTareas();
@@ -127,42 +129,60 @@ export default function App() {
     <>
       <Header />
       <div className="layout">
-        <Sidebar />
-        <div className="app-container">
-          <div className="board-header">
-            <div className="board-title">Realizar las tareas</div>
+        <Sidebar seccionActiva={seccionActiva} onSeccionChange={setSeccionActiva} />
+        
+        {seccionActiva === "tablero" && (
+          <div className="app-container">
+            <div className="board-header">
+              <div className="board-title">Realizar las tareas</div>
+            </div>
+            <div className="board-columns">
+              <Column
+                title="Lista de tareas"
+                color="blue"
+                tareas={pendientes}
+                onMoveRight={(id) => cambiarEstado(id, "proceso")}
+                onAddTask={(nombre, descripcion, estado) =>
+                  agregarTarea(estado, nombre, descripcion)
+                }
+              />
+              <Column
+                title="En proceso"
+                color="yellow"
+                tareas={proceso}
+                onMoveLeft={(id) => cambiarEstado(id, "pendiente")}
+                onMoveRight={(id) => cambiarEstado(id, "hecho")}
+                onAddTask={(nombre, descripcion, estado) =>
+                  agregarTarea(estado, nombre, descripcion)
+                }
+              />
+              <Column
+                title="Hecho"
+                color="green"
+                tareas={hecho}
+                onMoveLeft={(id) => cambiarEstado(id, "proceso")}
+                onAddTask={(nombre, descripcion, estado) =>
+                  agregarTarea(estado, nombre, descripcion)
+                }
+              />
+            </div>
           </div>
-          <div className="board-columns">
-            <Column
-              title="Lista de tareas"
-              color="blue"
-              tareas={pendientes}
-              onMoveRight={(id) => cambiarEstado(id, "proceso")}
-              onAddTask={(nombre, descripcion, estado) =>
-                agregarTarea(estado, nombre, descripcion)
-              }
-            />
-            <Column
-              title="En proceso"
-              color="yellow"
-              tareas={proceso}
-              onMoveLeft={(id) => cambiarEstado(id, "pendiente")}
-              onMoveRight={(id) => cambiarEstado(id, "hecho")}
-              onAddTask={(nombre, descripcion, estado) =>
-                agregarTarea(estado, nombre, descripcion)
-              }
-            />
-            <Column
-              title="Hecho"
-              color="green"
-              tareas={hecho}
-              onMoveLeft={(id) => cambiarEstado(id, "proceso")}
-              onAddTask={(nombre, descripcion, estado) =>
-                agregarTarea(estado, nombre, descripcion)
-              }
-            />
+        )}
+
+        {seccionActiva === "miembros" && (
+          <div className="app-container">
+            <GestionMiembros />
           </div>
-        </div>
+        )}
+
+        {seccionActiva === "configuracion" && (
+          <div className="app-container">
+            <div style={{ color: "white", padding: "20px", background: "rgba(0, 0, 0, 0.15)", borderRadius: "8px" }}>
+              <h2 style={{ margin: "0 0 10px 0" }}>Configuración</h2>
+              <p>Opciones de configuración del sistema.</p>
+            </div>
+          </div>
+        )}
       </div>
 
       <ToastContainer

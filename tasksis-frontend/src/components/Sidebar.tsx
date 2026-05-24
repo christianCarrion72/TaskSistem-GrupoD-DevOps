@@ -1,6 +1,11 @@
 import "../styles/Sidebar.css";
 
-export default function Sidebar() {
+interface SidebarProps {
+  seccionActiva: "tablero" | "miembros" | "configuracion";
+  onSeccionChange: (seccion: "tablero" | "miembros" | "configuracion") => void;
+}
+
+export default function Sidebar({ seccionActiva, onSeccionChange }: SidebarProps) {
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
@@ -9,9 +14,24 @@ export default function Sidebar() {
       </div>
 
       <div className="sidebar-section">
-        <div className="sidebar-item active">Tablero</div>
-        <div className="sidebar-item">Miembros</div>
-        <div className="sidebar-item">Configuración</div>
+        <div
+          className={`sidebar-item ${seccionActiva === "tablero" ? "active" : ""}`}
+          onClick={() => onSeccionChange("tablero")}
+        >
+          Tablero
+        </div>
+        <div
+          className={`sidebar-item ${seccionActiva === "miembros" ? "active" : ""}`}
+          onClick={() => onSeccionChange("miembros")}
+        >
+          Miembros
+        </div>
+        <div
+          className={`sidebar-item ${seccionActiva === "configuracion" ? "active" : ""}`}
+          onClick={() => onSeccionChange("configuracion")}
+        >
+          Configuración
+        </div>
       </div>
     </aside>
   );
