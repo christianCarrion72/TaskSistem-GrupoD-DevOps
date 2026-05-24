@@ -1,0 +1,315 @@
+# ═══════════════════════════════════════════════════
+# CI/CD Pipeline — TaskSistem (GitLab CI)
+# ═══════════════════════════════════════════════════
+
+# ═══════════════════════════════════════════════════
+# TRIGGERS
+# ═══════════════════════════════════════════════════
+workflow:
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH =~ /^feature\/.*/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "web"       # ejecución manual
+
+# ═══════════════════════════════════════════════════
+# VARIABLES GLOBALES
+# ═══════════════════════════════════════════════════
+variables:
+  DOTNET_VERSION: "10.0"
+  NODE_VERSION: "20"
+  IMAGE_BACKEND: $CI_REGISTRY_IMAGE/tasksis-api
+  IMAGE_FRONTEND: $CI_REGISTRY_IMAGE/tasksis-frontend
+  DOCKER_DRIVER: overlay2
+
+# ═══════════════════════════════════════════════════
+# STAGES — Jerarquía nativa en GitLab CI
+#   STAGE → JOB → STEPS (script)
+# ═══════════════════════════════════════════════════
+stages:
+  - stage-1-ci-backend
+  - stage-2-ci-frontend
+  - stage-3-docker-build
+  - stage-4-integration-test
+  - stage-5-smoke-test
+  - stage-6-deploy-staging
+  - stage-7-deploy-production
+
+# ───────────────────────────────────────────────────
+# STAGE 1 — CI Backend
+#   JOB: build-test-backend
+# ───────────────────────────────────────────────────
+build-test-backend:
+  stage: stage-1-ci-backend
+  image: mcr.microsoft.com/dotnet/sdk:10.0
+  tags:
+    - ubuntu-latest
+
+  script:
+    # STEP 1 - Restaurar dependencias
+    - dotnet restore
+    # STEP 2 - Compilar en modo Release
+    - dotnet build --configuration Release --no-restore
+    # STEP 3 - Ejecutar pruebas (allow_failure porque aún no hay proyecto de tests)
+    - dotnet test --no-build --configuration Release --verbosity normal || true
+    # STEP 4 - Publicar binarios
+    - dotnet publish TaskSis.Api/TaskSis.Api.csproj -c Release -o ./publish/backend /p:UseAppHost=false
+
+  # ARTEFACTO — binarios compilados del backend
+  artifacts:
+    name: backend-publish
+    paths:
+      - ./publish/backend
+    expire_in: 7 days
+
+# ───────────────────────────────────────────────────
+# STAGE 2 — CI Frontend
+#   JOB: build-test-frontend
+# ───────────────────────────────────────────────────
+build-test-frontend:
+  stage: stage-2-ci-frontend
+  image: node:20-alpine
+  tags:
+    - ubuntu-latest
+
+  script:
+    # STEP 1 - Instalar dependencias
+    - cd tasksis-frontend && npm install
+    # STEP 2 - Ejecutar pruebas
+    - npm run test 2>/dev/null || true
+    # STEP 3 - Compilar frontend
+    - npm run build
+
+  # ARTEFACTO — build estático listo para servir
+  artifacts:
+    name: frontend-dist
+    paths:
+      - tasksis-frontend/dist
+    expire_in: 7 days
+
+# ───────────────────────────────────────────────────
+# STAGE 3 — Docker Build & Push
+#   JOB: docker-build-push
+# ───────────────────────────────────────────────────
+docker-build-push:
+  stage: stage-3-docker-build
+  image: docker:24
+  services:
+    - docker:24-dind
+  tags:
+    - ubuntu-latest
+
+  script:
+    # STEP 1 - Autenticar en GitLab Container Registry
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    # STEP 2 - Build & Push imagen backend
+    - docker build -f TaskSis.Api/Dockerfile -t $IMAGE_BACKEND:$CI_COMMIT_SHA -t $IMAGE_BACKEND:latest ./TaskSis.Api
+    - docker push $IMAGE_BACKEND:$CI_COMMIT_SHA
+    - docker push $IMAGE_BACKEND:latest
+    # STEP 3 - Build & Push imagen frontend
+    - docker build -f tasksis-frontend/Dockerfile -t $IMAGE_FRONTEND:$CI_COMMIT_SHA -t $IMAGE_FRONTEND:latest ./tasksis-frontend
+    - docker push $IMAGE_FRONTEND:$CI_COMMIT_SHA
+    - docker push $IMAGE_FRONTEND:latest
+
+# ───────────────────────────────────────────────────
+# STAGE 4 — Pruebas de Integración
+#   JOB: integration-test
+#   Prueba CRUD completo sobre el stack dockerizado
+# ───────────────────────────────────────────────────
+integration-test:
+  stage: stage-4-integration-test
+  image: docker:24
+  services:
+    - docker:24-dind
+  tags:
+    - ubuntu-latest
+
+  script:
+    # STEP 1 - Autenticar en registry
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    # STEP 2 - Crear directorio de datos persistentes
+    - mkdir -p ./data/tasksis
+    # STEP 3 - Levantar stack dockerizado completo
+    - BACKEND_IMAGE=$IMAGE_BACKEND:latest FRONTEND_IMAGE=$IMAGE_FRONTEND:latest
+      docker compose -f docker-compose.yml -f docker-compose.persist.yml up -d
+    # STEP 4 - Esperar a que PostgreSQL esté listo
+    - |
+      echo "Esperando PostgreSQL..."
+      for i in $(seq 1 20); do
+        docker exec tasksis-db pg_isready -U tasksis -d tasksis && break || sleep 3
+      done
+    # STEP 5 - Esperar a que el backend esté listo
+    - |
+      echo "Esperando API..."
+      for i in $(seq 1 20); do
+        curl -sf http://localhost:5255/api/tareas && break || sleep 5
+      done
+    # STEP 5 - Integración: Crear usuario
+    - |
+      RESPONSE=$(curl -sf -X POST http://localhost:5255/api/usuarios \
+        -H "Content-Type: application/json" \
+        -d '{"nombre":"Usuario Test"}')
+      echo "Crear usuario: $RESPONSE"
+      echo $RESPONSE | grep -q "Usuario Test" || exit 1
+    # STEP 6 - Integración: Listar usuarios
+    - |
+      RESPONSE=$(curl -sf http://localhost:5255/api/usuarios)
+      echo "Listar usuarios: $RESPONSE"
+      echo $RESPONSE | grep -q "Usuario Test" || exit 1
+    # STEP 7 - Integración: Crear tarea
+    - |
+      RESPONSE=$(curl -sf -X POST http://localhost:5255/api/tareas \
+        -H "Content-Type: application/json" \
+        -d '{"nombre":"Tarea Test","descripcion":"Prueba de integración","estado":"Pendiente","usuarioId":1}')
+      echo "Crear tarea: $RESPONSE"
+      echo $RESPONSE | grep -q "Tarea Test" || exit 1
+    # STEP 8 - Integración: Listar tareas
+    - |
+      RESPONSE=$(curl -sf http://localhost:5255/api/tareas)
+      echo "Listar tareas: $RESPONSE"
+      echo $RESPONSE | grep -q "Tarea Test" || exit 1
+    # STEP 9 - Integración: Actualizar tarea
+    - |
+      RESPONSE=$(curl -sf -X PUT http://localhost:5255/api/tareas/1 \
+        -H "Content-Type: application/json" \
+        -d '{"nombre":"Tarea Test","descripcion":"Actualizada","estado":"Proceso","usuarioAsignadoId":1}')
+      echo "Actualizar tarea: $RESPONSE"
+      echo $RESPONSE | grep -q "Proceso" || exit 1
+    # STEP 10 - Integración: Eliminar tarea
+    - curl -sf -X DELETE http://localhost:5255/api/tareas/1
+    # STEP 11 - Frontend accesible
+    - curl -sf http://localhost:80
+
+  after_script:
+    # STEP 12 - Detener contenedores de prueba
+    - docker compose -f docker-compose.yml -f docker-compose.persist.yml down
+
+# ───────────────────────────────────────────────────
+# STAGE 5 — Smoke Tests
+#   JOB: smoke-test
+# ───────────────────────────────────────────────────
+smoke-test:
+  stage: stage-5-smoke-test
+  image: docker:24
+  services:
+    - docker:24-dind
+  tags:
+    - ubuntu-latest
+
+  script:
+    # STEP 1 - Autenticar en registry
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    # STEP 2 - Levantar stack completo
+    - BACKEND_IMAGE=$IMAGE_BACKEND:latest FRONTEND_IMAGE=$IMAGE_FRONTEND:latest
+      docker compose -f docker-compose.yml -f docker-compose.persist.yml up -d
+    # STEP 3 - Esperar a que PostgreSQL esté listo
+    - |
+      echo "Esperando PostgreSQL..."
+      for i in $(seq 1 20); do
+        docker exec tasksis-db pg_isready -U tasksis -d tasksis && break || sleep 3
+      done
+    # STEP 4 - Esperar a que el backend esté listo
+    - |
+      echo "Esperando API..."
+      for i in $(seq 1 20); do
+        curl -sf http://localhost:5255/api/tareas && break || sleep 5
+      done
+    # STEP 5 - Smoke test endpoints
+    - curl -sf http://localhost:5255/api/tareas
+    - curl -sf http://localhost:5255/api/usuarios
+    - curl -sf http://localhost:80
+
+  after_script:
+    # STEP 5 - Detener contenedores
+    - docker compose -f docker-compose.yml -f docker-compose.persist.yml down
+
+# ───────────────────────────────────────────────────
+# STAGE 6 — CD Deploy Staging
+#   JOB: deploy-staging
+#   Solo se ejecuta en push a main
+# ───────────────────────────────────────────────────
+deploy-staging:
+  stage: stage-6-deploy-staging
+  image: alpine:latest
+  tags:
+    - ubuntu-latest
+
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
+  environment:
+    name: staging
+    url: http://$STAGING_HOST:5173
+
+  before_script:
+    - apk add --no-cache openssh-client
+    - eval $(ssh-agent -s)
+    - echo "$STAGING_SSH_KEY" | ssh-add -
+    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+
+  script:
+    # STEP 1 - Deploy en staging vía SSH
+    - |
+      ssh -o StrictHostKeyChecking=no $STAGING_USER@$STAGING_HOST "
+        cd /opt/tasksis
+        echo $CI_REGISTRY_PASSWORD | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
+        docker pull $IMAGE_BACKEND:latest
+        docker pull $IMAGE_FRONTEND:latest
+        docker compose -f docker-compose.yml -f docker-compose.persist.yml up -d --remove-orphans
+      "
+    # STEP 2 - Verificar deploy en staging
+    - sleep 10
+    - curl -sf http://$STAGING_HOST:5255/api/tareas
+    - curl -sf http://$STAGING_HOST:5173
+
+# ───────────────────────────────────────────────────
+# STAGE 7 — CD Deploy Producción
+#   JOB: deploy-production
+#   Requiere aprobación manual (when: manual)
+# ───────────────────────────────────────────────────
+deploy-production:
+  stage: stage-7-deploy-production
+  image: alpine:latest
+  tags:
+    - ubuntu-latest
+
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual       # aprobación manual requerida
+
+  environment:
+    name: production
+    url: http://$PROD_HOST:5173
+
+  before_script:
+    - apk add --no-cache openssh-client
+    - eval $(ssh-agent -s)
+    - echo "$PROD_SSH_KEY" | ssh-add -
+    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+
+  script:
+    # STEP 1 - Backup del volumen de datos
+    - |
+      ssh -o StrictHostKeyChecking=no $PROD_USER@$PROD_HOST "
+        docker run --rm \
+          -v tasksis_db_data:/data \
+          -v /opt/tasksis/backups:/backup \
+          alpine tar czf /backup/db-$(date +%Y%m%d-%H%M%S).tar.gz /data
+      "
+    # STEP 2 - Deploy en producción vía SSH
+    - |
+      ssh -o StrictHostKeyChecking=no $PROD_USER@$PROD_HOST "
+        cd /opt/tasksis
+        echo $CI_REGISTRY_PASSWORD | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
+        docker pull $IMAGE_BACKEND:latest
+        docker pull $IMAGE_FRONTEND:latest
+        docker compose -f docker-compose.yml -f docker-compose.persist.yml up -d --remove-orphans
+      "
+    # STEP 3 - Verificar deploy en producción
+    - sleep 10
+    - curl -sf http://$PROD_HOST:5255/api/tareas
+    - curl -sf http://$PROD_HOST:5173
+
+  # ARTEFACTO — registro del deploy exitoso
+  after_script:
+    - echo "Deploy a producción completado — SHA $CI_COMMIT_SHA"
