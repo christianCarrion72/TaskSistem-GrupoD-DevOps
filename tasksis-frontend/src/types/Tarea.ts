@@ -3,4 +3,6 @@ export interface Tarea {
   nombre: string;
   descripcion: string;
   estado: "pendiente" | "proceso" | "hecho";
-}
+  usuarioAsignadoId?: number | null;
+  usuarioAsignadoNombre?: string | null;
+}
