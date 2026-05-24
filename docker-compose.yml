@@ -1,5 +1,19 @@
-
 services:
+  db:
+    image: postgres:16-alpine
+    container_name: tasksis-db
+    environment:
+      POSTGRES_DB: tasksis
+      POSTGRES_USER: tasksis
+      POSTGRES_PASSWORD: tasksis123
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tasksis -d tasksis"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   api:
     build:
       context: ./TaskSis.Api
@@ -9,6 +23,10 @@ services:
       - "5255:5255"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=tasksis;Username=tasksis;Password=tasksis123
+    depends_on:
+      db:
+        condition: service_healthy
 
   frontend:
     build:
@@ -16,6 +34,6 @@ services:
       dockerfile: Dockerfile
     container_name: tasksis-frontend
     ports:
-      - "5173:80"
+      - "80:80"
     depends_on:
       - api
