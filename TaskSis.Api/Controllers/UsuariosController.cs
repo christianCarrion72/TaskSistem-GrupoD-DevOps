@@ -43,6 +43,19 @@ public class UsuariosController : ControllerBase
         return Respond(response);
     }
 
+    [HttpPut("{id:int}")]
+    public IActionResult Update(int id, [FromBody] UsuarioUpdateDto dto)
+    {
+        if (!ModelState.IsValid) return UnprocessableFromModelState<UsuarioResponseDto>();
+        return Respond(_service.Update(id, dto));
+    }
+
+    [HttpDelete("{id:int}")]
+    public IActionResult Delete(int id)
+    {
+        return Respond(_service.Delete(id));
+    }
+
     private IActionResult Respond<T>(ServiceResponse<T> response) =>
         StatusCode(response.StatusCode, response.Body);
 

@@ -1,5 +1,8 @@
-body {
+html, body {
   margin: 0;
+  padding: 0;
+  height: 100vh;
+  overflow: hidden;
   font-family: Arial, Helvetica, sans-serif;
   background: #6d4a74;
 }
@@ -7,7 +10,9 @@ body {
 .app-container {
   flex: 1;
   padding: 20px;
+  overflow-y: auto;
   overflow-x: auto;
+  box-sizing: border-box;
 }
 
 .board-header {

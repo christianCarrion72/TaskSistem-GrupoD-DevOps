@@ -33,6 +33,7 @@ public class InMemoryUsuarioRepository : IUsuarioRepository
             {
                 Id = _nextId++,
                 Nombre = usuario.Nombre,
+                Correo = usuario.Correo,
                 FechaCreacion = DateTime.UtcNow
             };
 
@@ -41,10 +42,37 @@ public class InMemoryUsuarioRepository : IUsuarioRepository
         }
     }
 
+    public bool Update(Usuario usuario)
+    {
+        lock (_lock)
+        {
+            int idx = _items.FindIndex(x => x.Id == usuario.Id);
+            if (idx < 0) return false;
+
+            _items[idx].Nombre = usuario.Nombre;
+            _items[idx].Correo = usuario.Correo;
+            return true;
+        }
+    }
+
+    public bool Delete(int id)
+    {
+        lock (_lock)
+        {
+            Usuario? item = _items.FirstOrDefault(x => x.Id == id);
+            if (item is null) return false;
+
+            _items.Remove(item);
+            return true;
+        }
+    }
+
     private static Usuario Clone(Usuario x) => new()
     {
         Id = x.Id,
         Nombre = x.Nombre,
+        Correo = x.Correo,
         FechaCreacion = x.FechaCreacion
     };
 }
+

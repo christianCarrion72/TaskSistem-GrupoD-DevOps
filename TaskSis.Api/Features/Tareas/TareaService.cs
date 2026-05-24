@@ -68,13 +68,13 @@ public sealed class TareaService : ITareaService
             return ServiceResponse<TareaResponseDto>.Unprocessable(errors, "Fallo en la validación de tarea.");
         }
 
-        // Validar que el usuario propietario existe
-        if (_usuarioRepo.GetById(dto.UsuarioId) is null)
+        // Validar usuario (se omite si el id es 0, considerado usuario sistema)
+        if (dto.UsuarioId != 0 && _usuarioRepo.GetById(dto.UsuarioId) is null)
         {
             return ServiceResponse<TareaResponseDto>.NotFound($"Usuario propietario no encontrado con id: {dto.UsuarioId}");
         }
 
-        // Validar que el usuario asignado existe (si se especifica)
+        // Validar que el usuario asignado existe
         if (dto.UsuarioAsignadoId.HasValue && _usuarioRepo.GetById(dto.UsuarioAsignadoId.Value) is null)
         {
             return ServiceResponse<TareaResponseDto>.NotFound($"Usuario asignado no encontrado con id: {dto.UsuarioAsignadoId}");
@@ -98,7 +98,7 @@ public sealed class TareaService : ITareaService
         Tarea? existing = _repo.GetById(id);
         if (existing is null) return ServiceResponse<TareaResponseDto>.NotFound("Tarea no encontrada");
 
-        // Validar que el usuario asignado existe (si se especifica)
+        // Validar que el usuario asignado existe
         if (dto.UsuarioAsignadoId.HasValue && _usuarioRepo.GetById(dto.UsuarioAsignadoId.Value) is null)
         {
             return ServiceResponse<TareaResponseDto>.NotFound($"Usuario asignado no encontrado con id: {dto.UsuarioAsignadoId}");
