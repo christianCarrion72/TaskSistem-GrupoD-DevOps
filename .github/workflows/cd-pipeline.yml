@@ -378,9 +378,15 @@ jobs:
 
       - name: "STEP 3 | Verificar deploy en staging"
         run: |
-          sleep 10
-          curl -sf http://${{ secrets.STAGING_HOST }}:5255/api/tareas
-          curl -sf http://${{ secrets.STAGING_HOST }}:80
+          echo "Esperando que el backend esté listo en staging..."
+          for i in $(seq 1 24); do
+            curl -sf http://${{ secrets.STAGING_HOST }}:5255/api/tareas && break || echo "Intento $i/24 fallido, reintentando en 5s..." && sleep 5
+          done
+          echo "Verificando que el frontend sea accesible..."
+          for i in $(seq 1 12); do
+            curl -sf http://${{ secrets.STAGING_HOST }}:80 && break || echo "Intento $i/12 fallido, reintentando en 5s..." && sleep 5
+          done
+          echo "Deploy en staging verificado correctamente."
 
 # ┌─────────────────────────────────────────────────┐
 # │ STAGE 7                                         │
