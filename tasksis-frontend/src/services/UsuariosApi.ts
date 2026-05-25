@@ -1,7 +1,6 @@
 import type { Miembro } from "../types/Miembro";
 
-const API_URL = "http://localhost:5255/api/usuarios";
-
+const API_URL = `${import.meta.env.VITE_API_URL || "http://localhost:5255"}/api/usuarios`;
 interface ApiRespuesta<T> {
   exito: boolean;
   mensaje: string;
