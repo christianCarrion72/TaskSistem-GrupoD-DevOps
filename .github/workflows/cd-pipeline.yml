@@ -386,7 +386,7 @@ jobs:
         run: |
           sleep 10
           curl -sf http://${{ secrets.STAGING_HOST }}:5255/api/tareas
-          curl -sf http://${{ secrets.STAGING_HOST }}:5173
+          curl -sf http://${{ secrets.STAGING_HOST }}:80
 
 # ┌─────────────────────────────────────────────────┐
 # │ STAGE 7                                         │
