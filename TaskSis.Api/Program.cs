@@ -26,8 +26,9 @@ public static class Program
         builder.Services.AddSwaggerGen();
 
         // Base de datos
-        string connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+        string defaultConnectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
+            ?? "Host=localhost;Port=5432;Database=tasksis;Username=tasksis;Password=tasksis123";
+        string connectionString = ConnectionHelper.GetConnectionString(defaultConnectionString);
 
         builder.Services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(connectionString));
