@@ -121,7 +121,7 @@ jobs:
 # │ STAGE 3                                         │
 # │   JOB: stage-3-docker-build                     │
 # └─────────────────────────────────────────────────┘
-  stage-3-docker-build:
+stage-3-docker-build:
     name: "STAGE 3 | Docker Build & Push"
     runs-on: ubuntu-latest
     needs: [stage-1-ci-backend, stage-2-ci-frontend]
@@ -162,9 +162,7 @@ jobs:
           tags: |
             ${{ env.IMAGE_FRONTEND }}:sha-${{ github.sha }}
             ${{ env.IMAGE_FRONTEND }}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
+          no-cache: true
 # ┌─────────────────────────────────────────────────┐
 # │ STAGE 4                                         │
 # │   JOB: stage-4-integration-test                 │
