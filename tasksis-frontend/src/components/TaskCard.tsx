@@ -5,8 +5,7 @@ import type { Tarea } from "../types/Tarea";
 import type { Miembro } from "../types/Miembro";
 import { getUsuarios } from "../services/UsuariosApi";
 
-const API_URL = "http://localhost:5255/api/tareas";
-const CLAVE_ASIGNACIONES = "tasksis_asignaciones";
+const API_URL = `${import.meta.env.VITE_API_URL || "http://localhost:5255"}/api/tareas`;const CLAVE_ASIGNACIONES = "tasksis_asignaciones";
 
 const COLORES = ["#1976d2", "#388e3c", "#f57c00", "#7b1fa2", "#d32f2f", "#0097a7", "#e64a19", "#5d3b66"];
 
