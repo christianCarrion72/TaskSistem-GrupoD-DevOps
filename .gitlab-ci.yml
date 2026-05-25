@@ -148,7 +148,7 @@ integration-test:
     - |
       RESPONSE=$(curl -sf -X POST http://localhost:5255/api/usuarios \
         -H "Content-Type: application/json" \
-        -d '{"nombre":"Usuario Test"}')
+        -d '{"nombre":"Usuario Test","correo":"test@ejemplo.com"}')
       echo "Crear usuario: $RESPONSE"
       echo $RESPONSE | grep -q "Usuario Test" || exit 1
     # STEP 6 - Integración: Listar usuarios
