@@ -13,11 +13,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-
   api:
-    build:
-      context: ./TaskSis.Api
-      dockerfile: Dockerfile
+    image: ${BACKEND_IMAGE:-ghcr.io/christiancarrion72/tasksis-api:latest}
     container_name: tasksis-api
     ports:
       - "5255:5255"
@@ -27,11 +24,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
-
   frontend:
-    build:
-      context: ./tasksis-frontend
-      dockerfile: Dockerfile
+    image: ${FRONTEND_IMAGE:-ghcr.io/christiancarrion72/tasksis-frontend:latest}
     container_name: tasksis-frontend
     ports:
       - "80:80"
