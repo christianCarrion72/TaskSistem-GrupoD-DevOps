@@ -10,8 +10,7 @@ import GestionMiembros from "./components/GestionMiembros";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-const API_URL = "http://localhost:5255/api/tareas";
-
+const API_URL = `${import.meta.env.VITE_API_URL || "http://localhost:5255"}/api/tareas`;
 type EstadoFront = "pendiente" | "proceso" | "hecho";
 type EstadoApi = "Pendiente" | "Proceso" | "Hecho";
 
