@@ -150,9 +150,6 @@ jobs:
             ${{ env.IMAGE_BACKEND }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - name: "STEP 4.5 | Crear .env.production para frontend"
-        run: |
-          echo "VITE_API_URL=http://3.236.204.8:5255" > tasksis-frontend/.env.production
       - name: "STEP 5 | Build & Push imagen frontend"
         uses: docker/build-push-action@v5
         with:
@@ -162,6 +159,8 @@ jobs:
           tags: |
             ${{ env.IMAGE_FRONTEND }}:sha-${{ github.sha }}
             ${{ env.IMAGE_FRONTEND }}:latest
+          build-args: |
+            VITE_API_URL=http://3.236.204.8:5255
           no-cache: true
 # ┌─────────────────────────────────────────────────┐
 # │ STAGE 4                                         │
